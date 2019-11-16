@@ -91,49 +91,77 @@ Module.register("MMM-Wunderlist", {
 	},
 
 	html: {
-		table: "<thead>{0}</thead><tbody>{1}</tbody>",
-		row:
-			'<tr><td>{0}</td><td>{1}</td><td class="title bright">{2}</td><td>{3}</td></tr>',
-		star: '<i class="fa fa-star" aria-hidden="true"></i>',
-		assignee:
-			'<div style="display: inline-flex; align-items: center; justify-content: center; background-color: #aaa; color: #666; min-width: 1em; border-radius: 50%; vertical-align: middle; padding: 2px; text-transform: uppercase;">{0}</div>'
-	},
+    table: '<thead>{0}</thead><tbody>{1}</tbody>',
+    row: '<tr>{0}{1}</tr>',
+    column: '<td width="6%">{0}</td><td width="2%">{1}</td><td class="title bright" align="left" width="40%">{2}</td><td width="2%">{3}</td>',
+    star: '<i class="fa fa-star" aria-hidden="true"></i>',
+    assignee: '<div style="display: inline-flex; align-items: center; justify-content: center; background-color: #aaa; color: #666; min-width: 1em; border-radius: 50%; vertical-align: middle; padding: 2px; text-transform: uppercase;">{0}</div>',
+  },
 
-	getDom: function() {
-		var self = this;
-		var wrapper = document.createElement("table");
-		wrapper.className = "normal small light";
 
-		var todos = this.getTodos();
+  getDom: function () {
+    if (this.config.showAssignee && this.started && !this.users) {
+      this.sendSocketNotification("getUsers");
+    }
+    var self = this;
+    var wrapper = document.createElement("table");
+    wrapper.className = "normal small light";
 
-		var rows = [];
-		todos.forEach(function(todo, i) {
-			rows[i] = self.html.row.format(
-				self.config.showDeadline && todo.due_date ? todo.due_date : "",
-				todo.starred ? self.html.star : "",
-				todo.title,
-				self.config.showAssignee && todo.assignee_id && self.users
-					? self.html.assignee.format(self.users[todo.assignee_id])
-					: ""
-			);
-			// Create fade effect
-			if (self.config.fade && self.config.fadePoint < 1) {
-				if (self.config.fadePoint < 0) {
-					self.config.fadePoint = 0;
-				}
-				var startingPoint = todos.length * self.config.fadePoint;
-				if (i >= startingPoint) {
-					wrapper.style.opacity =
-						1 - (1 / todos.length - startingPoint * (i - startingPoint));
-				}
-			}
-		});
+    var todos = this.getTodos();
 
-		wrapper.innerHTML = this.html.table.format(
-			this.html.row.format("", "", "", ""),
-			rows.join("")
-		);
+    var rows = []
+    var rowCount = 0;
+    var row;
+    var previousCol;
+    todos.forEach(function (todo, i) {
 
-		return wrapper;
-	}
+      if (i%2!=0) {
+        var newCol = self.html.column.format(
+          //self.config.showDeadline && todo.due_date ? todo.due_date : '',
+          i+1,
+          todo.starred ? self.html.star : '',
+          todo.title,
+          self.config.showAssignee && todo.assignee_id && self.users ? self.html.assignee.format(self.users[todo.assignee_id]) : ''
+        )
+        rows[rowCount] = self.html.row.format(previousCol, newCol);
+        previousCol = '';
+        // New row
+        rowCount++;
+      }
+      else {
+        previousCol = self.html.column.format(
+          //self.config.showDeadline && todo.due_date ? todo.due_date : '',
+          i+1,
+          todo.starred ? self.html.star : '',
+          todo.title,
+          self.config.showAssignee && todo.assignee_id && self.users ? self.html.assignee.format(self.users[todo.assignee_id]) : ''
+        )
+      }
+
+      // Create fade effect
+      if (self.config.fade && self.config.fadePoint < 1) {
+        if (self.config.fadePoint < 0) {
+          self.config.fadePoint = 0;
+        }
+        var startingPoint = todos.length * self.config.fadePoint;
+        if (i >= startingPoint) {
+          wrapper.style.opacity = 1 - (1 / todos.length - startingPoint * (i - startingPoint));
+        }
+      }
+    });
+
+    if (previousCol != '') {
+      rowCount++;
+      var dummyCol = this.html.column.format('', '', '', '');
+      rows[rowCount] = self.html.row.format(previousCol, dummyCol);
+    }
+
+    wrapper.innerHTML = this.html.table.format(
+      this.html.row.format('', '', '', ''),
+      rows.join('')
+    )
+
+
+    return wrapper;
+  },
 });
